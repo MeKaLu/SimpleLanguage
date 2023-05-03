@@ -7,6 +7,7 @@ struct SimpleLangObject {
 	const void* func;
 	
 	unsigned char size;
+	unsigned char type;
 	short id;
 };
 typedef struct SimpleLangObject SimpleLangObject;
@@ -25,7 +26,7 @@ static void _objectListInit() {
 
 static void _objectListFree() {
 	for (unsigned short i = 0; i < object_list_size; i++)
-		sfree(object_list[i].ptr);
+		if (object_list[i].ptr != NULL) sfree(object_list[i].ptr);
 	sfree(object_list);
 	object_list = NULL;
 	object_list_index = 0;
@@ -35,7 +36,7 @@ static void _objectListFree() {
 static void _objectListResize(unsigned short newsize) {
 	SimpleLangObject* oldlist = object_list;
 
-	const unsigned int oldsize = object_list->size;
+	const unsigned int oldsize = object_list_size;
 	object_list_size = newsize;
 	
 	object_list = (SimpleLangObject*)smalloc(sizeof(SimpleLangObject) * object_list_size);
@@ -77,6 +78,16 @@ static void strcpy(char* dest, const char* source, unsigned short size) {
 	}
 }
 
+static bool strcmp(const char* src1, const char* src2) {
+	const unsigned short s_len = strlen(src1);
+	if (s_len != strlen(src2)) return false;
+
+	for (unsigned short i = 0; i < s_len; i++) {
+		if (src1[i] != src2[i]) return false;
+	}
+	return true;
+}
+
 static void strfill(char* str, unsigned short size, const char fill) {
 	for (unsigned short i = 0; i < size; i++)
 		str[i] = fill;
@@ -92,14 +103,17 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 	char word[100];
 	strfill(word, 100, '\0');
 	
-	bool skip = false;
 	/*
 		P -> pin
 		F -> func
 		A -> params
 		C -> combine
 	*/
-	char state = 'P';
+	unsigned char state = 'P';
+	bool multiple = false;
+	bool end = false;
+
+	bool skip = false;
 
 	while (i < code_size) {
 		c = code[i];
@@ -108,15 +122,20 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 		} else if (c == '#') {
 			skip = true;
 		} else {
+			bool dont_append = false;
 			if (!skip) {
 				/*
 					P -> pin
 					F -> func
 					A -> params
-					C -> combine
+					C -> combine [C|n(P)|F|n(A)]
 				*/
 				if (c == ' ') {
+					bool reject = false;
+					dont_append = true;
+				force_object:
 					word[word_i] = '\0';
+
 					void* word_copy = smalloc(sizeof(char) * word_i + 1);
 					strcpy((char*)word_copy, word, word_i + 1);
 
@@ -126,19 +145,74 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 						.ptr = word_copy,
 						.size = word_i + 1,
 						.id = id,
+						.type = state,
 					};
 
-					printf("%s\n", (const char*)word_copy);
-				tryagain:
-					if (!_objectListAppend(obj)) {
-						_objectListResize(object_list->size + 5);
-						goto tryagain;
+					// printf("%s\n", (const char*)word_copy);
+
+					if (state == 'P') {
+						if (!multiple) {
+							state = 'F';
+						} else {
+
+						}
+					} else if (state == 'F') {
+						// check if function exists
+						// hardcoded, [C|n(P)|F(empty)|A(F is here)|n(A)]
+						// avoided by doing this
+						if (word_i == 0) reject = true;
+						else {
+							state = 'A';
+						}
+					} else if (state == 'A') {
+						if (end) {
+							end = false;
+							state = 'P';
+						}
+						// check if param exists in the function
+					} else if (state == 'C') {
+						// Combine
+						multiple = true;
+						state = 'P';
+					}
+
+					if (reject == false) {
+						if (!_objectListAppend(obj)) {
+							_objectListResize(object_list_size + 5);
+							_objectListAppend(obj);
+						}
+					} else {
+						sfree(word_copy);
+					}
+					word_i = 0;
+				} else if (c == '@') {
+					if (state != 'P') goto invalid_statement;
+					else if (!multiple) {
+						state = 'C';
+						dont_append = true;
+					} else {
+						state = 'F';
+						multiple = false;
+						dont_append = true;
 					}
 				} else if (c == ';') {
-
+					if (state == 'A') {
+						// end of the statement
+						word[word_i] = ' ';
+						word_i++;
+						dont_append = true;
+						end = true;
+						goto force_object;
+					} else if (state == 'P' && multiple) {
+						dont_append = true;
+						goto force_object;
+					} else goto invalid_statement;
 				}
-				word[word_i] = c;
-				word_i++;
+
+				if (!dont_append) {
+					word[word_i] = c;
+					word_i++;
+				}
 			}
 		}
 		i++;
@@ -146,8 +220,14 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 
 	for (unsigned short i = 0; i < object_list_index; i++) {
 		if (object_list[i].id != -1)
-			printf("ID:%i|%s\n", object_list[i].id, (const char*)object_list[i].ptr);
+			printf("ID:%i|%c|%s\n", object_list[i].id, object_list[i].type, (const char*)object_list[i].ptr);
 	}
 
 	_objectListFree();
+	return;
+
+invalid_statement:
+	sprint("ERR:INVALID_STATEMENT\n");
+	_objectListFree();
+	return;
 }
