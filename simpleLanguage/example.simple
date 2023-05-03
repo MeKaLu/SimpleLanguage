@@ -1,10 +1,27 @@
-# pin func param
+# single pin
+# [pin] [function] [args ..]
 pin_8 note_play c4;
 pin_3 note_stop g5 c5;
 
-@ pin_4;
-pin_2;
+# single line chain
+# [open] [pin ..] [close] [function] [args ..]
+@ pin_1 pin_3 @ control_change 0xE0;
 
+# multiline 
+# [open] 
+# [pin; ..] 
+# [close] 
+# [function] 
+# [args ..]
+@ 
+pin_4;
 pin_3;
+@ note_stop c5;
 
-@ note_play c5 a6;
+@ 
+pin_4;
+# inline [pin ..] does not require ';'
+pin_2 pin_5;
+pin_3;
+@ # [function] [args ..] must be inline
+note_play c5 a6;
