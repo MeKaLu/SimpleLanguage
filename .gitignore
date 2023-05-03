@@ -29,3 +29,8 @@ simpleLanguage/x64/Debug/vc143.idb
 simpleLanguage/x64/Debug/vc143.pdb
 x64/Debug/simpleLanguage.exe
 x64/Debug/simpleLanguage.pdb
+*.json
+*.log
+*.txt
+x64/Debug/example.simple
+*.obj
