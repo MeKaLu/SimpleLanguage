@@ -131,9 +131,9 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 					C -> combine [C|n(P)|F|n(A)]
 				*/
 				if (c == ' ') {
-					bool reject = false;
 					dont_append = true;
 				force_object:
+					bool reject = false;
 					word[word_i] = '\0';
 
 					void* word_copy = smalloc(sizeof(char) * word_i + 1);
