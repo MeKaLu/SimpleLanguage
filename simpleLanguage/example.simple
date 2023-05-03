@@ -1,0 +1,37 @@
+# [handler] [op/condition] [command/compareto]
+# [handler] is the variable that we are going to use
+# [command] -> <function> <param0> <param1> ...
+
+# operators:
+# '=' assignment
+
+# conditions
+# '>' greater
+# '<' lesser
+# '>=' equal or greater
+# '<=' equal or lesser
+# '==' equal
+# '!=' not equal
+
+# @chain is builtin
+# @chain [specific-commands]
+# which are, start, end, command
+
+# if (pin8) note_play(c4)
+do = note_play c4
+pin8 == do
+# if (!pin3) note_play(c4)
+pin3 != do
+
+# if (pinA0 > 0) pitch_bend(pinA0)
+@chain start
+@chain command = pitch_bend pinA0
+    pinA0 > 0
+@chain end
+
+# if (pin9 && pin8) note_play(c4)
+@chain start
+@chain command = note_play c4 3sec
+    pin8 == 1
+    pin9 == 1
+@chain end
