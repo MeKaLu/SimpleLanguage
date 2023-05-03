@@ -7,7 +7,7 @@ struct SimpleLangObject {
 	const void* func;
 	
 	unsigned char size;
-	unsigned char type;
+	char type;
 	short id;
 };
 typedef struct SimpleLangObject SimpleLangObject;
@@ -16,15 +16,15 @@ SimpleLangObject* object_list = NULL;
 unsigned short object_list_index = 0;
 unsigned short object_list_size = 0;
 
-static void _objectListInit() {
+static void objectListInit() {
 	object_list_index = 0;
 	object_list_size = 10;
 	object_list = (SimpleLangObject*)smalloc(sizeof(SimpleLangObject) * object_list_size);
 	for (unsigned short i = 0; i < object_list_size; i++)
-		object_list[i] = (SimpleLangObject){ NULL, NULL, 0 , -1 };
+		object_list[i] = (SimpleLangObject){ NULL, NULL, 0 , 0, -1 };
 }
 
-static void _objectListFree() {
+static void objectListFree() {
 	for (unsigned short i = 0; i < object_list_size; i++)
 		if (object_list[i].ptr != NULL) sfree(object_list[i].ptr);
 	sfree(object_list);
@@ -33,7 +33,7 @@ static void _objectListFree() {
 	object_list_size = 0;
 }
 
-static void _objectListResize(unsigned short newsize) {
+static void objectListResize(unsigned short newsize) {
 	SimpleLangObject* oldlist = object_list;
 
 	const unsigned int oldsize = object_list_size;
@@ -42,20 +42,20 @@ static void _objectListResize(unsigned short newsize) {
 	object_list = (SimpleLangObject*)smalloc(sizeof(SimpleLangObject) * object_list_size);
 	for (unsigned short i = 0; i < object_list_size; i++) {
 		if (i > oldsize) {
-			object_list[i] = (SimpleLangObject){ NULL, NULL, 0 , -1 };
+			object_list[i] = (SimpleLangObject){ NULL, NULL, 0, 0, -1 };
 		} else if (i < oldsize) object_list[i] = oldlist[i];
 	}
 	sfree(oldlist);
 }
 
 // returns the position of the obj
-static short _objectListFind(short id) {
-	for (unsigned short i = 0; i < object_list_index; i++)
+static short objectListFind(short id) {
+	for (short i = 0; i < object_list_index; i++)
 		if (object_list[i].id == id) return i;
 	return -1;
 }
 
-static bool _objectListAppend(SimpleLangObject obj) {
+static bool objectListAppend(SimpleLangObject obj) {
 	if (object_list_index >= object_list_size)
 		return false;
 
@@ -94,10 +94,10 @@ static void strfill(char* str, unsigned short size, const char fill) {
 }
 
 void simpleLangExecute(const char* code, const unsigned short code_size) {
-	_objectListInit();
+	objectListInit();
 
 	unsigned short i = 0;
-	unsigned char c = 0;
+	char c = 0;
 
 	unsigned char word_i = 0;
 	char word[100];
@@ -109,7 +109,7 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 		A -> params
 		C -> combine
 	*/
-	unsigned char state = 'P';
+	char state = 'P';
 	bool multiple = false;
 	bool end = false;
 
@@ -140,7 +140,7 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 					strcpy((char*)word_copy, word, word_i + 1);
 
 					short id = word_i + ((i != 0) ? i / 10 : 0);
-					while (_objectListFind(id) != -1) id++;
+					while (objectListFind(id) != -1) id++;
 					SimpleLangObject obj = (SimpleLangObject){
 						.ptr = word_copy,
 						.size = word_i + 1,
@@ -177,9 +177,9 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 					}
 
 					if (reject == false) {
-						if (!_objectListAppend(obj)) {
-							_objectListResize(object_list_size + 5);
-							_objectListAppend(obj);
+						if (!objectListAppend(obj)) {
+							objectListResize(object_list_size + 5);
+							objectListAppend(obj);
 						}
 					} else {
 						sfree(word_copy);
@@ -218,16 +218,16 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 		i++;
 	}
 
-	for (unsigned short i = 0; i < object_list_index; i++) {
-		if (object_list[i].id != -1)
-			printf("ID:%i|%c|%s\n", object_list[i].id, object_list[i].type, (const char*)object_list[i].ptr);
+	for (unsigned short j = 0; j < object_list_index; j++) {
+		if (object_list[j].id != -1)
+			printf("ID:%i|%c|%s\n", object_list[j].id, object_list[j].type, (const char*)object_list[j].ptr);
 	}
 
-	_objectListFree();
+	objectListFree();
 	return;
 
 invalid_statement:
 	sprint("ERR:INVALID_STATEMENT\n");
-	_objectListFree();
+	objectListFree();
 	return;
 }
