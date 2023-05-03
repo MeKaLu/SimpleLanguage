@@ -117,8 +117,10 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 
 	while (i < code_size) {
 		c = code[i];
-		if (c == '\n' && skip) skip = false;
-		else if (c == '\n' || c == '\r' || c == '\t') {
+		if (c == '\n') {
+			if (skip) skip = false;
+			else if (!skip && state == 'A') goto invalid_statement;
+		} else if (c == '\n' || c == '\r' || c == '\t') {
 		} else if (c == '#') {
 			skip = true;
 		} else {
@@ -154,7 +156,7 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 						if (!multiple) {
 							state = 'F';
 						} else {
-
+							if (word_i == 0) reject = true;
 						}
 					} else if (state == 'F') {
 						// check if function exists
@@ -198,8 +200,8 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 				} else if (c == ';') {
 					if (state == 'A') {
 						// end of the statement
-						word[word_i] = ' ';
-						word_i++;
+						//word[word_i] = ' ';
+						//word_i++;
 						dont_append = true;
 						end = true;
 						goto force_object;
