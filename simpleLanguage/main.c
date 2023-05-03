@@ -31,7 +31,7 @@ int main() {
 
 	simpleLangExecute(buffer, lsize);
 
-	free (buffer);
+	free(buffer);
 
 	getch();
 	return 0;		

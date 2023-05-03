@@ -2,19 +2,6 @@
 
 #include <stdbool.h>
 
-enum SimpleLangOperator {
-	SIMPLE_LANG_OP_ASSIGNMENT,
-};
-
-enum SimpleLangCondition {
-	SIMPLE_LANG_COND_GREATER,
-	SIMPLE_LANG_COND_LESSER,
-	SIMPLE_LANG_COND_EQGREATER,
-	SIMPLE_LANG_COND_EQLESSER,
-	SIMPLE_LANG_COND_EQUAL,
-	SIMPLE_LANG_COND_NOTEQUAL,
-};
-
 struct SimpleLangObject {
 	void* ptr;
 	const void* func;
@@ -45,6 +32,21 @@ static void _objectListFree() {
 	object_list_size = 0;
 }
 
+static void _objectListResize(unsigned short newsize) {
+	SimpleLangObject* oldlist = object_list;
+
+	const unsigned int oldsize = object_list->size;
+	object_list_size = newsize;
+	
+	object_list = (SimpleLangObject*)smalloc(sizeof(SimpleLangObject) * object_list_size);
+	for (unsigned short i = 0; i < object_list_size; i++) {
+		if (i > oldsize) {
+			object_list[i] = (SimpleLangObject){ NULL, NULL, 0 , -1 };
+		} else if (i < oldsize) object_list[i] = oldlist[i];
+	}
+	sfree(oldlist);
+}
+
 // returns the position of the obj
 static short _objectListFind(short id) {
 	for (unsigned short i = 0; i < object_list_index; i++)
@@ -61,9 +63,18 @@ static bool _objectListAppend(SimpleLangObject obj) {
 	return true;
 }
 
+static unsigned short strlen(const char* str) {
+	unsigned short l = 0;
+	while (str[l] != '\0') l++;
+	return l;
+}
+
 static void strcpy(char* dest, const char* source, unsigned short size) {
-	for (unsigned short i = 0; i < size; i++)
-		dest[i] = source[i];
+	const unsigned short so_len = strlen(source);
+	for (unsigned short i = 0; i < size; i++) {
+		if (i >= so_len) dest[i] = '\0';
+		else dest[i] = source[i];
+	}
 }
 
 static void strfill(char* str, unsigned short size, const char fill) {
@@ -76,44 +87,59 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 
 	unsigned short i = 0;
 	unsigned char c = 0;
-	unsigned short line = 1;
-	bool skip_line = false;
 
 	unsigned char word_i = 0;
 	char word[100];
 	strfill(word, 100, '\0');
+	
+	bool skip = false;
+	/*
+		P -> pin
+		F -> func
+		A -> params
+		C -> combine
+	*/
+	char state = 'P';
 
 	while (i < code_size) {
 		c = code[i];
-		if (c == '#') {
-			skip_line = true;
-		} else if (!skip_line && c == ' ') {
-			word[word_i] = '\0';
+		if (c == '\n' && skip) skip = false;
+		else if (c == '\n' || c == '\r' || c == '\t') {
+		} else if (c == '#') {
+			skip = true;
+		} else {
+			if (!skip) {
+				/*
+					P -> pin
+					F -> func
+					A -> params
+					C -> combine
+				*/
+				if (c == ' ') {
+					word[word_i] = '\0';
+					void* word_copy = smalloc(sizeof(char) * word_i + 1);
+					strcpy((char*)word_copy, word, word_i + 1);
 
-			char* ptr = (char*)smalloc(sizeof(char) * word_i);
-			strcpy(ptr, word, word_i);
+					short id = word_i + ((i != 0) ? i / 10 : 0);
+					while (_objectListFind(id) != -1) id++;
+					SimpleLangObject obj = (SimpleLangObject){
+						.ptr = word_copy,
+						.size = word_i + 1,
+						.id = id,
+					};
 
-			short id = line + word_i;
-			if (_objectListFind(id) != -1) {
-				while (_objectListFind(id) != -1) id += 1;
+					printf("%s\n", (const char*)word_copy);
+				tryagain:
+					if (!_objectListAppend(obj)) {
+						_objectListResize(object_list->size + 5);
+						goto tryagain;
+					}
+				} else if (c == ';') {
+
+				}
+				word[word_i] = c;
+				word_i++;
 			}
-			SimpleLangObject obj = (SimpleLangObject){
-				.id = id,
-				.ptr = ptr,
-			};
-
-			word_i = 0;
-			sprint(word);
-			sprint("\n");
-
-			if (!_objectListAppend(obj)) break;
-
-		} else if (c == '\n') {
-			line++;
-			skip_line = false;
-		} else if (!skip_line) {
-			word[word_i] = c;
-			word_i++;
 		}
 		i++;
 	}
