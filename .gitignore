@@ -1,0 +1,10 @@
+
+*.vsidx
+*.ipch
+*.db
+*.lock
+.vs/simpleLanguage/v17/.suo
+*.vcxproj
+*.filters
+*.user
+*.sln
