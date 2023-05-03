@@ -12,6 +12,10 @@
 #define sfree	free
 #endif
 
+#ifndef sprint
+#define sprint(str) printf("%s", str)
+#endif
+
 /**
 	@param code has to be freed manually
 */
