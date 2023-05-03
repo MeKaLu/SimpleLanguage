@@ -61,6 +61,11 @@ static bool _objectListAppend(SimpleLangObject obj) {
 	return true;
 }
 
+static void strcpy(char* dest, const char* source, unsigned short size) {
+	for (unsigned short i = 0; i < size; i++)
+		dest[i] = source[i];
+}
+
 static void strfill(char* str, unsigned short size, const char fill) {
 	for (unsigned short i = 0; i < size; i++)
 		str[i] = fill;
@@ -84,9 +89,9 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 			skip_line = true;
 		} else if (!skip_line && c == ' ') {
 			word[word_i] = '\0';
-			word_i = 0;
-			sprint(word);
-			sprint("\n");
+
+			char* ptr = (char*)smalloc(sizeof(char) * word_i);
+			strcpy(ptr, word, word_i);
 
 			short id = line + word_i;
 			if (_objectListFind(id) != -1) {
@@ -94,7 +99,13 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 			}
 			SimpleLangObject obj = (SimpleLangObject){
 				.id = id,
+				.ptr = ptr,
 			};
+
+			word_i = 0;
+			sprint(word);
+			sprint("\n");
+
 			if (!_objectListAppend(obj)) break;
 
 		} else if (c == '\n') {
@@ -107,9 +118,10 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 		i++;
 	}
 
-	//for (unsigned short i = 0; i < object_list_index; i++) {
-	//	printf("ID:%i\n", object_list[i].id);
-	//}
+	for (unsigned short i = 0; i < object_list_index; i++) {
+		if (object_list[i].id != -1)
+			printf("ID:%i|%s\n", object_list[i].id, (const char*)object_list[i].ptr);
+	}
 
 	_objectListFree();
 }

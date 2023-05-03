@@ -4,33 +4,33 @@
 #include "simple_language.h"
 
 int main() {
-	FILE * pFile;
-	long lSize;
+	FILE * pfile;
+	long lsize;
 	char * buffer;
 	size_t result;
 
-	pFile = fopen ("example.simple", "rb");
-	if (pFile == NULL) { fputs ("File error", stderr); exit (1); }
+	pfile = fopen ("example.simple", "rb");
+	if (pfile == NULL) { fputs ("File error", stderr); exit (1); }
 
 	// obtain file size:
-	fseek (pFile, 0, SEEK_END);
-	lSize = ftell(pFile);
-	rewind(pFile);
+	fseek (pfile, 0, SEEK_END);
+	lsize = ftell(pfile);
+	rewind(pfile);
 
 	// allocate memory to contain the whole file:
-	buffer = (char*)malloc(sizeof(char) * lSize);
+	buffer = (char*)malloc(sizeof(char) * lsize);
 	if (buffer == NULL) { fputs("Memory error", stderr); exit(2); }
 
 	// copy the file into the buffer:
-	result = fread(buffer, 1 ,lSize, pFile);
-	if (result != lSize) { fputs ("Reading error", stderr); exit (3); }
+	result = fread(buffer, 1 ,lsize, pfile);
+	if (result != lsize) { fputs ("Reading error", stderr); exit (3); }
+
+	fclose(pfile);
 
 	/* the whole file is now loaded in the memory buffer. */
 
-	simpleLangExecute(buffer, lSize);
+	simpleLangExecute(buffer, lsize);
 
-	// terminate
-	fclose (pFile);
 	free (buffer);
 
 	getch();
