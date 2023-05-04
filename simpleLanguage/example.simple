@@ -16,11 +16,11 @@ pin_3 note_stop g5 c5;
 # [args ..]
 # if pin_4 == 1 && pin_3 == 1: note_stop(c5)
 @ 
-pin_4;
+pin_4; p;
 pin_3;
 @ note_stop c5;
 
-@ pin_4; pin_6 pin_8 # there can be ';' or not does not matter here (if written in the same line with '@')
+@ pin_4; pin_6 pin_8 # there can be ';' or not does not matter here
 # inline [pin ..] does not require ';'
 pin_2 pin_5;
 pin_3;
@@ -29,13 +29,14 @@ note_play c5 a6;
 
 # conditons
 # [pin] [condition open] [condition] [close] [function] [args]
-pin_a0 : > 500 : foo 500;
+pin_a0 : > 500 : foo;
 
 # multiple condition statement
-# pin_a1 : > 0 & < 500 : foo 0;
+pin_a1 : > 0 @ < 500 : foo arg;
 
 # conditions with combine
 # @
-# pin_a1 : > 0 & < 500;
-# pin_8; # if pin_8 == 1
-# @ bar 5;
+#pin_a1 : > 0;
+#pin_8; # if pin_8 == 1
+#@ bar 5;
+
