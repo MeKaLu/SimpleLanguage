@@ -140,7 +140,8 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 			linec++;
 			if (skip) skip = false;
 			else if (!skip && state == STATE_ARGUMENT) {
-				set_error("INVALIDSTATEARGUMENT");
+				// there should be ';' at the end of each statement but there was not
+				set_error("UNFINISHEDSTATEMENT");
 				goto force_error;
 			}
 		} else if (c == '\r' || c == '\t') {
@@ -149,6 +150,7 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 		} else {
 			bool dont_append = false;
 			if (!skip) {
+				// spaces are very important in this language
 				if (c == ' ') {
 					dont_append = true;
 				force_object:
@@ -156,9 +158,13 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 					bool reject = false;
 					word[word_i] = '\0';
 
+					// if there is a rejection it will be freed at the end,
+					// else it will be freed when object list is getting freed
 					void* word_copy = smalloc(sizeof(char) * word_i + 1);
 					strcpy((char*)word_copy, word, word_i + 1);
 
+					// create somewhat random word id, there should be no possible 
+					// same id created here but just in case it will check and act accordingly
 					short id = word_i + ((i != 0) ? i / 10 : 0);
 					while (objectListFind(id) != -1) id++;
 					SimpleLangObject obj = (SimpleLangObject){
@@ -172,7 +178,8 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 
 					if (state == STATE_PIN) {
 						// 'word_i > 0' hardcoded to avoid empty objects
-						// if 'word_i == 0' it will reject the object append 
+						// if 'word_i == 0' it will reject the object append
+						// otherwise pin will slide into the function and function will slide into argument
 						if (!multiple && word_i > 0) {
 							state = STATE_FUNCTION;
 						} else {
@@ -182,13 +189,14 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 					} else if (state == STATE_FUNCTION) {
 						// check if function exists
 						// hardcoded, [C|n(P)|F(empty)|A(F is here)|n(A)]
-						// avoided by doing this
+						// sliding the object types avoided with this
 						if (word_i == 0) reject = true;
 						else {
 							state = STATE_ARGUMENT;
 						}
 					} else if (state == STATE_ARGUMENT) {
 						if (end) {
+							// add the argument then reset the state
 							end = false;
 							state = STATE_PIN;
 						}
@@ -203,6 +211,9 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 						if (!objectListAppend(obj)) {
 							objectListResize(object_list_size + 5);
 							if (!objectListAppend(obj)) {
+								// there should be no possible way it will reach this but 
+								// just in case we run out of memory and/or malloc failed
+								set_error("FAILEDTOAPPENDOBJECT");
 								goto force_error;
 							}
 						}
@@ -211,28 +222,34 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 					}
 					word_i = 0;
 				} else if (c == SPECIAL_COMBINE) {
+					// after [C] there is going to be [P]
 					if (state != STATE_PIN) {
+						// it is not [P], therefore invalid
 						set_error("INVALIDSTATE");
 						goto force_error;
-					}
-					else if (!multiple) {
+					} else if (!multiple) {
+						// start adding the pins
 						state = STATE_COMBINE;
 						dont_append = true;
 					} else {
+						// end
 						state = STATE_FUNCTION;
 						multiple = false;
 						dont_append = true;
 					}
 				} else if (c == SPECIAL_END) {
 					if (state == STATE_ARGUMENT) {
+						// add the argument then reset the state
 						dont_append = true;
 						end = true;
 						goto force_object;
 					} else if (state == STATE_PIN && multiple) {
+						// add the argument then continue for the others
 						dont_append = true;
 						goto force_object;
 					} else {
-						set_error("INVALIDSTATECOMBINE");
+						// this should not happen
+						set_error("UNKOWNENDING");
 						goto force_error;
 					}
 				}
