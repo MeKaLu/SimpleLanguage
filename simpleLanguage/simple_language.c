@@ -138,7 +138,6 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 	
 	char old_state = STATE_PIN;
 	char state = STATE_PIN;
-	bool multiple = false;
 	bool end = false;
 	bool skip = false;
 
@@ -193,9 +192,13 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 						// 'word_i > 0' hardcoded to avoid empty objects
 						// if 'word_i == 0' it will reject the object append
 						// otherwise pin will slide into the function and function will slide into argument
-						if (!multiple && word_i > 0) {
-							old_state = state;
-							state = STATE_FUNCTION;
+						if (word_i > 0) {
+							if (old_state == STATE_COMBINE) {
+								// [C] is empty
+							} else {
+								old_state = state;
+								state = STATE_FUNCTION;
+							}
 						} else {
 							// hardcoded to avoid empty objects
 							if (word_i == 0) reject = true; // possible need of escape here, or else it may interfere
@@ -204,7 +207,7 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 							else if (old_state != STATE_COMBINE) {
 								set_error("UNKNOWNUSEOFPINS");
 								goto force_error;
-							}
+							} else goto force_error;
 						}
 					} else if (state == STATE_FUNCTION) {
 						// check if function exists
@@ -216,23 +219,26 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 							state = STATE_ARGUMENT;
 						}
 					} else if (state == STATE_ARGUMENT) {
-						if (end) {
-							// add the argument then reset the state
-							end = false;
-							old_state = state;
-							state = STATE_PIN;
+						if (old_state == STATE_FUNCTION) {
+							// check if param exists in the function
+							if (end) {
+								// add the argument then reset the state
+								end = false;
+								old_state = state;
+								state = STATE_PIN;
+							}
+						} else {
+							set_error("UNKNOWNUSEOFARGUMENTS");
+							goto force_error;
 						}
-						// check if param exists in the function
 					} else if (state == STATE_COMBINE) {
 						// Combine
-						multiple = true;
 						old_state = state;
 						state = STATE_PIN;
 					} else if (state == STATE_CONDITION) {
 						// hardcoded to avoid empty objects
 						if (word_i == 0) reject = true; // possible need of escape here, or else it may interfere
 						else {
-							//multiple = true;
 							old_state = state;
 							state = STATE_CONDITION_ARGUMENT;
 						}
@@ -240,12 +246,15 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 						// hardcoded to avoid empty objects
 						if (word_i == 0) reject = true; // possible need of escape here, or else it may interfere
 						else if (old_state == STATE_CONDITION) {
+							// after a condition arg, there should be a function 
+							// but there might also be a combined condition
+							// either way, we are going to assume there will be a function
 							old_state = state;
-							state = STATE_CONDITION_ARGUMENT;
-						} else if (!multiple && old_state != STATE_CONDITION) {
-							set_error("INVALIDUSEOFCONDITION");
+							state = STATE_FUNCTION;
+						} else {
+							set_error("UNKNOWNUSEOFCONDITIONARGUMENT");
 							goto force_error;
-						} else goto force_error; // dont know how to get here
+						}
 					} else {
 						set_error("UNKNOWNSTATE");
 						goto force_error;
@@ -269,47 +278,48 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 					word_i = 0;
 				} else if (c == SPECIAL_COMBINE) {
 					// after [C] there is going to be [P]
-					if (state == STATE_PIN && !multiple) {
+					if (state == STATE_PIN) {
 						// start adding the pins
 						old_state = state;
 						state = STATE_COMBINE;
 						dont_append = true;
-					} else if (state == STATE_PIN && multiple) {
+					} else if (state == STATE_PIN && old_state == STATE_COMBINE) {
 						// end
 						old_state = state;
 						state = STATE_FUNCTION;
-						multiple = false;
 						dont_append = true;
-					} else if (state == STATE_CONDITION_ARGUMENT) {
+					} else if (state == STATE_FUNCTION && old_state == STATE_CONDITION_ARGUMENT) {
 						// multiple conditions, [pin] : < 500 @ > 0 :
+						// after a condition argument it is assumened to have a function
+						// but in this case not
 						old_state = state;
 						state = STATE_CONDITION;
 						dont_append = true;
 					} else {
-						set_error("INVALIDSTATE");
+						set_error("INVALIDUSEOFCOMBINE");
 						goto force_error;
 					}
 				} else if (c == SPECIAL_CONDITION) {
 					// there is always pin before a condition
 					// but after a pin state becomes function
 					// so we check for the last state
-					if (old_state == STATE_PIN && state == STATE_FUNCTION) {
+					if (state == STATE_FUNCTION && old_state == STATE_PIN) {
 						old_state = state;
 						state = STATE_CONDITION;
 						dont_append = true;
-					} else if (old_state == STATE_COMBINE && state == STATE_PIN) {
+					} else if (state == STATE_PIN && old_state == STATE_COMBINE) {
 						// combine just started therefore current state is pin
 						// multiple is also true
 						old_state = state;
 						state = STATE_CONDITION;
 						dont_append = true;
-					} else if (state == STATE_CONDITION_ARGUMENT) {
+					} else if (state == STATE_FUNCTION && old_state == STATE_CONDITION_ARGUMENT) {
 						// condition ended
 						old_state = state;
 						state = STATE_FUNCTION;
 						dont_append = true;
 					} else {
-						set_error("INVALIDSTATEBEFORECONDITION");
+						set_error("INVALIDUSEOFCONDITION");
 						goto force_error;
 					}
 				} else if (c == SPECIAL_END) {
@@ -318,7 +328,7 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 						dont_append = true;
 						end = true;
 						goto force_object;
-					} else if (state == STATE_PIN && multiple) {
+					} else if (state == STATE_PIN && old_state == STATE_COMBINE) {
 						// add the argument then continue for the others
 						dont_append = true;
 						goto force_object;
