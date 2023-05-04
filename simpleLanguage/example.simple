@@ -32,10 +32,10 @@ note_play c5 a6;
 pin_a0 : > 500 : foo 500;
 
 # multiple condition statement
-pin_a1 : > 0 & < 500 : foo 0;
+# pin_a1 : > 0 & < 500 : foo 0;
 
 # conditions with combine
-@
-pin_a1 : > 0 & < 500;
-pin_8; # if pin_8 == 1
-@ bar 5;
+# @
+# pin_a1 : > 0 & < 500;
+# pin_8; # if pin_8 == 1
+# @ bar 5;
