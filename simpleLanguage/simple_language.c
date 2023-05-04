@@ -2,6 +2,26 @@
 
 #include <stdbool.h>
 
+/*
+	P -> pin
+	F -> func
+	A -> params
+	C -> combine	[C|n(P)|F|n(A)]
+	S -> condition	[P<n(S)>|F|n(A)] or [C|n(P)<n(S)>|F|n(A)]
+*/
+#define STATE_PIN			'P'
+#define STATE_FUNCTION		'F'
+#define STATE_ARGUMENT		'A'
+#define STATE_COMBINE		'C'
+#define STATE_CONDITION		'S'
+
+#define SPECIAL_COMMENT		'#'
+#define SPECIAL_END			';'
+#define SPECIAL_COMBINE		'@'
+#define SPECIAL_CONDITION	':'
+
+#define set_error(message)  strcpy(error, message, SIMPLE_LANGUAGE_ERROR_LEN)
+
 struct SimpleLangObject {
 	void* ptr;
 	const void* func;
@@ -70,12 +90,14 @@ static unsigned short strlen(const char* str) {
 	return l;
 }
 
-static void strcpy(char* dest, const char* source, unsigned short size) {
+static bool strcpy(char* dest, const char* source, unsigned short size) {
 	const unsigned short so_len = strlen(source);
+	if (so_len > size) return false;
 	for (unsigned short i = 0; i < size; i++) {
 		if (i >= so_len) dest[i] = '\0';
 		else dest[i] = source[i];
 	}
+	return true;
 }
 
 static bool strcmp(const char* src1, const char* src2) {
@@ -97,41 +119,36 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 	objectListInit();
 
 	unsigned short i = 0;
+	unsigned short linec = 0;
 	char c = 0;
 
+	char error[SIMPLE_LANGUAGE_ERROR_LEN];
+	set_error("UNKOWN");
+
 	unsigned char word_i = 0;
-	char word[100];
-	strfill(word, 100, '\0');
+	char word[SIMPLE_LANGUAGE_MAX_WORD_LEN];
+	strfill(word, SIMPLE_LANGUAGE_MAX_WORD_LEN, '\0');
 	
-	/*
-		P -> pin
-		F -> func
-		A -> params
-		C -> combine
-	*/
-	char state = 'P';
+	char state = STATE_PIN;
 	bool multiple = false;
 	bool end = false;
-
 	bool skip = false;
 
 	while (i < code_size) {
 		c = code[i];
 		if (c == '\n') {
+			linec++;
 			if (skip) skip = false;
-			else if (!skip && state == 'A') goto invalid_statement;
-		} else if (c == '\n' || c == '\r' || c == '\t') {
-		} else if (c == '#') {
+			else if (!skip && state == STATE_ARGUMENT) {
+				set_error("INVALIDSTATEARGUMENT");
+				goto force_error;
+			}
+		} else if (c == '\r' || c == '\t') {
+		} else if (c == SPECIAL_COMMENT) {
 			skip = true;
 		} else {
 			bool dont_append = false;
 			if (!skip) {
-				/*
-					P -> pin
-					F -> func
-					A -> params
-					C -> combine [C|n(P)|F|n(A)]
-				*/
 				if (c == ' ') {
 					dont_append = true;
 				force_object:
@@ -150,65 +167,73 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 						.type = state,
 					};
 
-					// printf("%s\n", (const char*)word_copy);
+					printf("%s\n", (const char*)word_copy);
 
-					if (state == 'P') {
-						if (!multiple) {
-							state = 'F';
+					if (state == STATE_PIN) {
+						// 'word_i > 0' hardcoded to avoid empty objects
+						// if 'word_i == 0' it will reject the object append 
+						if (!multiple && word_i > 0) {
+							state = STATE_FUNCTION;
 						} else {
-							if (word_i == 0) reject = true;
+							// hardcoded to avoid empty objects
+							if (word_i == 0) reject = true; // possible need of escape here, or else it may interfere
 						}
-					} else if (state == 'F') {
+					} else if (state == STATE_FUNCTION) {
 						// check if function exists
 						// hardcoded, [C|n(P)|F(empty)|A(F is here)|n(A)]
 						// avoided by doing this
 						if (word_i == 0) reject = true;
 						else {
-							state = 'A';
+							state = STATE_ARGUMENT;
 						}
-					} else if (state == 'A') {
+					} else if (state == STATE_ARGUMENT) {
 						if (end) {
 							end = false;
-							state = 'P';
+							state = STATE_PIN;
 						}
 						// check if param exists in the function
-					} else if (state == 'C') {
+					} else if (state == STATE_COMBINE) {
 						// Combine
 						multiple = true;
-						state = 'P';
+						state = STATE_PIN;
 					}
 
 					if (reject == false) {
 						if (!objectListAppend(obj)) {
 							objectListResize(object_list_size + 5);
-							objectListAppend(obj);
+							if (!objectListAppend(obj)) {
+								goto force_error;
+							}
 						}
 					} else {
 						sfree(word_copy);
 					}
 					word_i = 0;
-				} else if (c == '@') {
-					if (state != 'P') goto invalid_statement;
+				} else if (c == SPECIAL_COMBINE) {
+					if (state != STATE_PIN) {
+						set_error("INVALIDSTATE");
+						goto force_error;
+					}
 					else if (!multiple) {
-						state = 'C';
+						state = STATE_COMBINE;
 						dont_append = true;
 					} else {
-						state = 'F';
+						state = STATE_FUNCTION;
 						multiple = false;
 						dont_append = true;
 					}
-				} else if (c == ';') {
-					if (state == 'A') {
-						// end of the statement
-						//word[word_i] = ' ';
-						//word_i++;
+				} else if (c == SPECIAL_END) {
+					if (state == STATE_ARGUMENT) {
 						dont_append = true;
 						end = true;
 						goto force_object;
-					} else if (state == 'P' && multiple) {
+					} else if (state == STATE_PIN && multiple) {
 						dont_append = true;
 						goto force_object;
-					} else goto invalid_statement;
+					} else {
+						set_error("INVALIDSTATECOMBINE");
+						goto force_error;
+					}
 				}
 
 				if (!dont_append) {
@@ -228,8 +253,8 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 	objectListFree();
 	return;
 
-invalid_statement:
-	sprint("ERR:INVALID_STATEMENT\n");
+force_error:
+	printf("-------------------\nERR:%s\n\tLINE: %i WORD: %s\n\tLAST STATE: %c\n", error, linec, word, state);
 	objectListFree();
 	return;
 }
