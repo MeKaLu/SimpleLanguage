@@ -167,7 +167,10 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 					// if there is a rejection it will be freed at the end,
 					// else it will be freed when object list is getting freed
 					void* word_copy = smalloc(sizeof(char) * word_i + 1);
-					strcpy((char*)word_copy, word, word_i + 1);
+					if (!strcpy((char*)word_copy, word, word_i + 1)) {
+						// word was longer than word_i
+						goto force_error;
+					}
 
 					// create somewhat random word id, there should be no possible 
 					// same id created here but just in case it will check and act accordingly
