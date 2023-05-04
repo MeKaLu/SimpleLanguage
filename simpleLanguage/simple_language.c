@@ -152,6 +152,7 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 				if (c == ' ') {
 					dont_append = true;
 				force_object:
+					// rejection can still happen even if the object is forced
 					bool reject = false;
 					word[word_i] = '\0';
 
