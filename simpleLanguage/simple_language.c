@@ -20,7 +20,11 @@
 #define SPECIAL_COMBINE		'@'
 #define SPECIAL_CONDITION	':'
 
+#if SIMPLE_LANGUAGE_ERROR_MESSAGE
 #define set_error(message)  strcpy(error, message, SIMPLE_LANGUAGE_ERROR_LEN)
+#else
+#define set_error(message)
+#endif
 
 struct SimpleLangObject {
 	void* ptr;
@@ -122,7 +126,9 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 	unsigned short linec = 0;
 	char c = 0;
 
+#if SIMPLE_LANGUAGE_ERROR_MESSAGE
 	char error[SIMPLE_LANGUAGE_ERROR_LEN];
+#endif
 	set_error("UNKOWN");
 
 	unsigned char word_i = 0;
@@ -174,7 +180,9 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 						.type = state,
 					};
 
+#if SIMPLE_LANGUAGE_ERROR_MESSAGE
 					printf("%s\n", (const char*)word_copy);
+#endif
 
 					if (state == STATE_PIN) {
 						// 'word_i > 0' hardcoded to avoid empty objects
@@ -250,7 +258,7 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 						dont_append = true;
 						goto force_object;
 					} else {
-						// this should not happen
+						// probably just written ';' otherwise there is no way to get here
 						set_error("UNKOWNENDING");
 						goto force_error;
 					}
@@ -274,7 +282,11 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 	return;
 
 force_error:
+#if SIMPLE_LANGUAGE_ERROR_MESSAGE
 	printf("-------------------\nERR:%s\n\tLINE: %i WORD: %s\n\tLAST STATE: %c\n", error, linec, word, state);
+#else
+	printf("-------------------\nERROR(message is disabled)\n\tLINE: %i WORD: %s\n\tLAST STATE: %c\n", linec, word, state);
+#endif
 	objectListFree();
 	return;
 }
