@@ -214,6 +214,8 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 								// there should be no possible way it will reach this but 
 								// just in case we run out of memory and/or malloc failed
 								set_error("FAILEDTOAPPENDOBJECT");
+								// free the word_copy, we are aborting the function
+								sfree(word_copy);
 								goto force_error;
 							}
 						}
