@@ -26,11 +26,11 @@
 #define set_error(message)
 #endif
 
+#pragma pack(1)
 struct SimpleLangObject {
+	void* ptr;
 	char type;
 	unsigned char size;
-
-	void* ptr;
 };
 
 SimpleLangObject* object_list = nullptr;
