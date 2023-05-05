@@ -168,7 +168,7 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 			if (state == STATE_ZERO && word_len == 0 && (c == SPECIAL_COMBINE || c == SPECIAL_CONDITION || c == SPECIAL_END)) {
 				set_error("CannotStartWithSpecialChars");
 				goto force_error;
-			} else if ((c == SPECIAL_COMBINE || c == SPECIAL_CONDITION || c == SPECIAL_END)) {
+			} else if (c == SPECIAL_COMBINE || c == SPECIAL_CONDITION || c == SPECIAL_END) {
 				if (c == SPECIAL_END && word_len > 0) {
 					// word has ended, more like the entire statement ended though
 					// so for that to happen, there has to be at least a function
@@ -198,13 +198,23 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 						goto skip_to_object_append;
 					}
 				} else if (c == SPECIAL_COMBINE) {
-					if (state == STATE_FUNCTION && word_len == 0) {
+					if (state == STATE_PIN && word_len == 0) {
 						// syntax rule error
 						set_error("InvalidUseOfCombine");
 						goto force_error;
+					} else if (state == STATE_FUNCTION && word_len == 0) {
+						// syntax rule error
+						set_error("InvalidUseOfCombine");
+						goto force_error;
+					} else if (state == STATE_FUNCTION) {
+						printf("f\n");
 					}
 				} else if (c == SPECIAL_CONDITION) {
-					if (state == STATE_FUNCTION && word_len == 0) {
+					if (state == STATE_PIN && word_len == 0) {
+						// syntax rule error
+						set_error("InvalidUseOfCombine");
+						goto force_error;
+					} else if (state == STATE_FUNCTION && word_len == 0) {
 						// syntax rule error
 						set_error("InvalidUseOfCondition");
 						goto force_error;
