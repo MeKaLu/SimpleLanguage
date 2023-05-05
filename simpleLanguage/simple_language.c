@@ -127,7 +127,7 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 	unsigned short i = 0;
 	unsigned short linec = 1;
 	char c = 0;
-	unsigned short object_id = 0;
+	short object_id = 0;
 
 #if SIMPLE_LANGUAGE_ERROR_MESSAGE
 	char error[SIMPLE_LANGUAGE_ERROR_LEN];
@@ -181,12 +181,57 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 				printf("Line: %i | Word: %s\n", linec, word_copy);
 #endif
 
+				bool reject_obj = false;
+
+				// fresh start
+				// that means there HAS to be a pin
+				if (state == STATE_ZERO) {
+					state = STATE_PIN;
+				}
+
 				SimpleLangObject obj = (SimpleLangObject){
 					.ptr = word_copy,
 					.size = word_len,
 					.id = object_id,
 					.type = state,
 				};
+
+				if (!reject_obj) {
+					// just in case we accidentally make duplicate object_id, should be impossible though
+					while (objectListFind(object_id) != -1) {
+						object_id++;
+#ifdef SIMPLE_LANGUAGE_ERROR_MESSAGE
+						printf("DUPLICATE ID FOUND: %i\n", object_id);
+#endif
+					}
+					// reassign the id
+					obj.id = object_id;
+					if (!objectListAppend(obj)) {
+						// probably size issue
+						// reallocate
+						objectListResize(object_list_size + 5);
+						// try again
+						if (!objectListAppend(obj)) {
+							// something went terribly wrong
+							set_error("ReallocationObjListFailed");
+							// dont forget to free the word_copy
+							sfree(word_copy);
+							goto force_error;
+						}
+					}
+					// increment the id for the next obj
+					object_id++;
+
+
+#ifdef SIMPLE_LANGUAGE_ERROR_MESSAGE
+					printf("Id: %i | Type: %c\n", obj.id, obj.type);
+#endif
+				} else {
+#ifdef SIMPLE_LANGUAGE_ERROR_MESSAGE
+					printf("^rejected\n");
+#endif
+					sfree(word_copy);
+				}
 
 				word_len = 0;
 			}
