@@ -2,6 +2,7 @@
 
 # comment
 
+
 # single line with no args
 pin foo;
 

@@ -127,13 +127,14 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 	unsigned short i = 0;
 	unsigned short linec = 1;
 	char c = 0;
+	unsigned short object_id = 0;
 
 #if SIMPLE_LANGUAGE_ERROR_MESSAGE
 	char error[SIMPLE_LANGUAGE_ERROR_LEN];
 #endif
 	set_error("Unkown");
 
-	unsigned char word_i = 0;
+	unsigned char word_len = 0;
 	char word[SIMPLE_LANGUAGE_MAX_WORD_LEN];
 	strfill(word, SIMPLE_LANGUAGE_MAX_WORD_LEN, '\0');
 	
@@ -146,13 +147,11 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 		c = code[i];
 		if (c == '\n') {
 			linec++;
+			word[0] = '\0';
+			word_len = 0;
 			if (skip) skip = false;
 			else if (!skip) {
-				if (state == STATE_ZERO) {
-					linec++;
-					i++;
-					continue;
-				} else {
+				if (state != STATE_ZERO) {
 					// there should be ';' at the end of each statement but there was not
 					set_error("UnfinishedStatement");
 					goto force_error;
@@ -161,8 +160,38 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 		} else if (c == '\r' || c == '\t') {
 		} else if (c == SPECIAL_COMMENT) {
 			skip = true;
-		} else {
-		
+		} else if (!skip) {
+			// lines cannot start with special characters
+			if (c == SPECIAL_COMBINE || c == SPECIAL_CONDITION || c == SPECIAL_END) {
+				set_error("LinesCannotStartWithSpecialChars");
+				goto force_error;
+			} else if (c == ' ' && word_len > 0) {
+				// a word
+
+				// +1 for null character at the end, strcpy will add it
+				word_len++;
+				void* word_copy = smalloc(sizeof(char) * word_len);
+				if (!strcpy((char*)word_copy, word, word_len)) {
+					// something failed, should never happen
+					set_error("ImpossibleErrorOnWordCopy");
+					goto force_error;
+				}
+
+#ifdef SIMPLE_LANGUAGE_ERROR_MESSAGE
+				printf("Line: %i | Word: %s\n", linec, word_copy);
+#endif
+
+				SimpleLangObject obj = (SimpleLangObject){
+					.ptr = word_copy,
+					.size = word_len,
+					.id = object_id,
+					.type = state,
+				};
+
+				word_len = 0;
+			}
+			word[word_len] = c;
+			word_len++;
 		}
 		i++;
 	}
@@ -177,9 +206,9 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 
 force_error:
 #if SIMPLE_LANGUAGE_ERROR_MESSAGE
-	printf("-------------------\nERR:%s\n\tLINE: %i WORD: %s\n\tLAST STATEs: %c & %c\n", error, linec, word, old_state, state);
+	printf("-------------------\nERR:%s\n\tLINE: %i WORD: %s CHAR: %c\n\tLAST STATEs: %c & %c\n", error, linec, word, c, old_state, state);
 #else
-	printf("-------------------\nERROR(message is disabled)\n\tLINE: %i WORD: %s\n\tLAST STATEs: %c & %c\n", linec, word, old_state, state);
+	printf("-------------------\nERROR(message is disabled)\n\tLINE: %i WORD: %s CHAR: %c\n\tLAST STATEs: %c & %c\n", linec, word, c, old_state, state);
 #endif
 	objectListFree();
 	return;
