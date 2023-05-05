@@ -1,8 +1,7 @@
 #ifndef SIMPLE_LANGUAGE_H
 #define SIMPLE_LANGUAGE_H
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdlib>
 
 #ifndef smalloc
 #define smalloc malloc
@@ -10,10 +9,6 @@
 
 #ifndef sfree
 #define sfree	free
-#endif
-
-#ifndef sprint
-#define sprint(str) printf("%s", str)
 #endif
 
 #ifndef SIMPLE_LANGUAGE_MAX_WORD_LEN

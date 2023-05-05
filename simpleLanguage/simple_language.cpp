@@ -1,6 +1,6 @@
 #include "simple_language.h"
 
-#include <stdbool.h>
+#include <cstdio>
 
 /*
 	P -> pin
@@ -39,7 +39,6 @@ struct SimpleLangObject {
 
 	void* ptr;
 };
-typedef struct SimpleLangObject SimpleLangObject;
 
 SimpleLangObject* object_list = NULL;
 unsigned short object_list_index = 0;

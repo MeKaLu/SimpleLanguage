@@ -1,5 +1,5 @@
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 
 #include "simple_language.h"
 
@@ -33,6 +33,6 @@ int main() {
 
 	free(buffer);
 
-	getch();
+	getchar();
 	return 0;		
 }
