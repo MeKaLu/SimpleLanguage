@@ -17,13 +17,13 @@
 #define STATE_CONDITION					'S'
 #define STATE_CONDITION_ARGUMENT		'B'
 
-#define SPECIAL_COMMENT		'#'
-#define SPECIAL_END			';'
-#define SPECIAL_COMBINE		'&'
-#define SPECIAL_COMBINE_END '@'
-#define SPECIAL_LINEIGNORE  '|'
-#define SPECIAL_CONDITION	':'
-#define SPECIAL_PLACEHOLDER '+'
+#define SPECIAL_COMMENT					'#'
+#define SPECIAL_END						';'
+#define SPECIAL_COMBINE					'&'
+#define SPECIAL_COMBINE_END				'@'
+#define SPECIAL_LINEIGNORE				'|'
+#define SPECIAL_CONDITION				':'
+#define SPECIAL_PLACEHOLDER				'+'
 
 #define SPECIAL_END_STR			";\0"
 
@@ -40,7 +40,7 @@ struct SimpleLangObject {
 	void* ptr;
 };
 
-SimpleLangObject* object_list = NULL;
+SimpleLangObject* object_list = nullptr;
 unsigned short object_list_index = 0;
 unsigned short object_list_size = 0;
 
@@ -54,9 +54,9 @@ static void objectListInit() {
 
 static void objectListFree() {
 	for (unsigned short i = 0; i < object_list_size; i++)
-		if (object_list[i].ptr != NULL) sfree(object_list[i].ptr);
+		if (object_list[i].ptr != nullptr) sfree(object_list[i].ptr);
 	sfree(object_list);
-	object_list = NULL;
+	object_list = nullptr;
 	object_list_index = 0;
 	object_list_size = 0;
 }
