@@ -13,13 +13,14 @@ pin foo; # inline comment
 # single line with 1 arg
 pin foo arg1;
 
-;
 
 # single line with 3 args
-pin foo arg1 @ arg2 @ arg3;
+pin foo arg1 arg2 arg3;
 
 # 3 pins with no arg
 pin1 @ pin2 @ pin3 foo;
+
+;
 
 # 3 pins with 1 arg
 pin1 @ pin2 @ pin3 foo arg1;
@@ -27,14 +28,14 @@ pin1 @ pin2 @ pin3 foo arg1;
 
 
 # 3 pins with 3 args
-pin1 @ pin2 @ pin3 foo arg1 @ arg2 @ arg3;
+pin1 @ pin2 @ pin3 foo arg1 arg2 arg3;
 
 
 # 3 pins and 3 args with varied lines 
 pin1 @
 pin2 @ pin3 
-foo arg1 @
-arg2 @ arg3;
+foo arg1
+arg2 arg3;
 
 # 1 pin and 1 conditon with no arg
 pina0 : > 500 foo;
@@ -52,5 +53,5 @@ pina2 @ pina4
 @ pina2
 : > 500 @
 < 700
-@ != 550 foo arg1 @ arg2 @
+@ != 550 foo arg1 arg2 
 arg3;
