@@ -13,6 +13,8 @@ pin foo; # inline comment
 # single line with 1 arg
 pin foo arg1;
 
+;
+
 # single line with 3 args
 pin foo arg1 @ arg2 @ arg3;
 
