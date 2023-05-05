@@ -198,13 +198,13 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 						goto skip_to_object_append;
 					}
 				} else if (c == SPECIAL_COMBINE) {
-					if (state == STATE_FUNCTION) {
+					if (state == STATE_FUNCTION && word_len == 0) {
 						// syntax rule error
 						set_error("InvalidUseOfCombine");
 						goto force_error;
 					}
 				} else if (c == SPECIAL_CONDITION) {
-					if (state == STATE_FUNCTION) {
+					if (state == STATE_FUNCTION && word_len == 0) {
 						// syntax rule error
 						set_error("InvalidUseOfCondition");
 						goto force_error;
