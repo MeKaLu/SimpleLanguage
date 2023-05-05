@@ -2,17 +2,17 @@
 
 # comment
 
-
 # single line with no args
-pin f&o:o;
+pin f&|o:o|&|;
+# <keyword>[@] is invalid(at the end), only [&, ; and |] works but ';' ends the statement so be careful
 
 
 # single line with no args and inline comment
-pin foo ; # inline comment
+pin foo; # inline comment
 
 
 # single line, two statements
-pin foo ; pin bar;
+pin foo; pin bar;
 
 # single line with 1 arg
 pin foo arg1;
@@ -32,29 +32,41 @@ pin1 & pin2 & pin3 @ foo arg1;
 # 3 pins with 3 args
 pin1 & pin2 & pin3 @ foo arg1 arg2 arg3;
 
-; # tested until here
-
 # 3 pins and 3 args with varied lines 
-pin1 &
-pin2 & pin3 @
-foo arg1
-arg2 arg3;
+pin1 & | # inline
+pin2 & pin3 & |
+pin4 |
+@ foo # no need for line ignore after function and arguments, it is also an error
+arg1 
+arg2 
+arg3 arg4;
+
+# break the line after pin
+pin |
+foo| # this works
+arg;
+
+# break the line after function
+pin foo 
+arg;
+
+#; # tested until here
 
 # 1 pin and 1 conditon with no arg
-pina0 : > 500 foo;
+#pina0 : > 500 foo;
 
 
 # 1 pin and 1 conditon with 1 arg
-pina0 : > 500 foo arg1;
+#pina0 : > 500 foo arg1;
 
 # 1 pin and 3 condition with 1 arg
-pina2 : > 500 & < 700 & != 550 @ foo arg;
+#pina2 : > 500 & < 700 & != 550 @ foo arg;
 
 
 # 3 pin and 3 condition with varied lines and 3 arg
-pina2 & pina4
-& pina2
-: > 500 &
-< 700
-& != 550 @ foo arg1 arg2 
-arg3;
+#pina2 & pina4 |
+#& pina2 |
+#: > 500 & |
+#< 700 |
+#& != 550 @ foo arg1 arg2
+#arg3;

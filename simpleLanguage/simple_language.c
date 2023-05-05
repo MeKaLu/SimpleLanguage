@@ -21,6 +21,7 @@
 #define SPECIAL_END			';'
 #define SPECIAL_COMBINE		'&'
 #define SPECIAL_COMBINE_END '@'
+#define SPECIAL_LINEIGNORE  '|'
 #define SPECIAL_CONDITION	':'
 #define SPECIAL_PLACEHOLDER '+'
 
@@ -33,12 +34,10 @@
 #endif
 
 struct SimpleLangObject {
-	void* ptr;
-	const void* func;
-	
-	unsigned char size;
 	char type;
-	short id;
+	unsigned char size;
+
+	void* ptr;
 };
 typedef struct SimpleLangObject SimpleLangObject;
 
@@ -51,7 +50,7 @@ static void objectListInit() {
 	object_list_size = 10;
 	object_list = (SimpleLangObject*)smalloc(sizeof(SimpleLangObject) * object_list_size);
 	for (unsigned short i = 0; i < object_list_size; i++)
-		object_list[i] = (SimpleLangObject){ NULL, NULL, 0 , 0, -1 };
+		object_list[i] = (SimpleLangObject){ 0 };
 }
 
 static void objectListFree() {
@@ -72,17 +71,10 @@ static void objectListResize(unsigned short newsize) {
 	object_list = (SimpleLangObject*)smalloc(sizeof(SimpleLangObject) * object_list_size);
 	for (unsigned short i = 0; i < object_list_size; i++) {
 		if (i > oldsize) {
-			object_list[i] = (SimpleLangObject){ NULL, NULL, 0, 0, -1 };
+			object_list[i] = (SimpleLangObject){ 0 };
 		} else if (i < oldsize) object_list[i] = oldlist[i];
 	}
 	sfree(oldlist);
-}
-
-// returns the position of the obj
-static short objectListFind(short id) {
-	for (short i = 0; i < object_list_index; i++)
-		if (object_list[i].id == id) return i;
-	return -1;
 }
 
 static bool objectListAppend(SimpleLangObject obj) {
@@ -131,7 +123,6 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 	unsigned short i = 0;
 	unsigned short linec = 1;
 	char c = 0;
-	short object_id = 0;
 
 #if SIMPLE_LANGUAGE_ERROR_MESSAGE
 	char error[SIMPLE_LANGUAGE_ERROR_LEN];
@@ -149,35 +140,51 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 	bool dont_append = false;
 	bool end_statement = false;
 	bool fresh = false;
+	bool reject_obj = false;
 
 	while (i < code_size) {
 		c = code[i];
 		if (c == '\n') {
 			if (skip) skip = false;
 			else if (!skip) {
-				if ((state == STATE_ZERO || (state != STATE_ZERO && state != STATE_ARGUMENT)) && word_len > 0) {
+				if (state == STATE_PIN && old_state == STATE_ZERO) {
+					// line broke and there  is not a line break 
+					// cause its not required in arguments and after functions
+					// forcibly append the object
+					dont_append = true;
+
+					old_state = state;
+					state = STATE_ARGUMENT;
+					linec++;
+					goto skip_to_object_append;
+				} else if (state == STATE_ARGUMENT) {
+					dont_append = true;
+
+					old_state = state;
+					state = STATE_ARGUMENT;
+					linec++;
+					goto skip_to_object_append;
+				} else if ((state == STATE_ZERO) && word_len > 0) {
 					// there should be ';' at the end of each statement but there was not
 					set_error("UnfinishedStatement");
 					goto force_error;
 				}
 			}
 			linec++;
-			word[0] = '\0';
-			word_len = 0;
 		} else if (c == '\r' || c == '\t') {
 		} else if (c == SPECIAL_COMMENT) {
 			skip = true;
 		} else if (!skip) {
 			// lines cannot start with special characters
-			if (state == STATE_ZERO && word_len == 0 && (c == SPECIAL_COMBINE || c == SPECIAL_CONDITION || c == SPECIAL_END)) {
-				set_error("CannotStartWithSpecialChars");
+			if ((state == STATE_ZERO && old_state == STATE_ZERO) && word_len == 0 && (c == SPECIAL_COMBINE || c == SPECIAL_COMBINE_END || c == SPECIAL_CONDITION || c == SPECIAL_END)) {
+				set_error("CannotStartWithSpecialSymbols");
 				goto force_error;
-			} else if (c == SPECIAL_COMBINE || c == SPECIAL_COMBINE_END || c == SPECIAL_CONDITION || c == SPECIAL_END) {
+			} else if (c == SPECIAL_COMBINE || c == SPECIAL_COMBINE_END || c == SPECIAL_LINEIGNORE || c == SPECIAL_CONDITION || c == SPECIAL_END) {
 				if (c == SPECIAL_END && word_len > 0) {
 					// word has ended, more like the entire statement ended though
 					// so for that to happen, there has to be at least a function
 					if (state == STATE_FUNCTION) {
-						// it's single argument function
+						// it's single(or after the first but not the last) argument function
 						dont_append = true;
 						end_statement = true;
 
@@ -195,12 +202,22 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 						state = STATE_FUNCTION;
 						goto skip_to_object_append;
 					} else if (state == STATE_ARGUMENT) {
+						// multiple(last) argument function
 						dont_append = true;
 						end_statement = true;
 
 						fresh = true;
 						goto skip_to_object_append;
 					}
+				} else if (c == SPECIAL_END && word_len == 0) {
+					// space before ';'
+					set_error("InvalidUseOfSymbol");
+					goto force_error;
+				} else if (c == SPECIAL_END && word_len == 0 && state != STATE_FUNCTION) {
+					// if it ends with a function and no argument, that is valid but 
+					// any other way except ending after the arguments are false
+					set_error("CannotStartWithSpecialSymbols");
+					goto force_error;
 				} else if (c == SPECIAL_COMBINE) {
 					if (state == STATE_PIN && word_len == 0) {
 						if (old_state == STATE_ZERO || old_state == STATE_COMBINE) {
@@ -222,9 +239,7 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 						// syntax error
 						set_error("InvalidUseOfCombine");
 						goto force_error;
-					} else if (state == STATE_FUNCTION) {
-						printf("f\n");
-					}
+					} 
 				} else if (c == SPECIAL_COMBINE_END) {
 					if (old_state != STATE_COMBINE) {
 						// syntax error
@@ -236,6 +251,20 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 					// so, just act like combine never happened and proceed
 					old_state = STATE_ZERO;
 					state = STATE_PIN;
+				} else if (c == SPECIAL_LINEIGNORE) {
+					if (state == STATE_FUNCTION && old_state == STATE_PIN) {
+						// syntax error
+						set_error("InvalidUseOfLineIgnore");
+						goto force_error;
+					} else if (state == STATE_ARGUMENT && old_state == STATE_FUNCTION) {
+						// syntax error
+						set_error("InvalidUseOfLineIgnore");
+						goto force_error;
+					} else if (word_len == 0) {
+						// ignore the line break
+						skip = true;
+						dont_append = true;
+					}
 				} else if (c == SPECIAL_CONDITION) {
 					if (state == STATE_PIN && word_len == 0) {
 						if (old_state == STATE_ZERO) {
@@ -252,7 +281,12 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 					}
 				}
 			} else if (c == ' ' && word_len > 0) {
-				bool reject_obj = false;
+				// space before ';'
+				if (strcmp(word, SPECIAL_END_STR)) {
+					set_error("InvalidUseOfSymbolEnd");
+					goto force_error;
+				}
+
 				// check if there is no SPECIAL_END at the end of the C & P combos
 				if (state == STATE_PIN && old_state == STATE_COMBINE) {
 					// check for the last object
@@ -267,14 +301,6 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 					old_state = state;
 					state = STATE_FUNCTION;
 				} else if (state == STATE_FUNCTION && old_state == STATE_PIN) {
-					// dont fucking append the special character
-					if (strcmp(word, SPECIAL_END_STR)) {
-						reject_obj = true;
-
-						dont_append = true;
-						end_statement = true;
-						fresh = true;
-					} 
 					// prevent double functions
 					old_state = state;
 					state = STATE_ARGUMENT;		
@@ -287,7 +313,13 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 					state = STATE_PIN;
 				} 
 			skip_to_object_append:
+				if (word_len >= SIMPLE_LANGUAGE_MAX_WORD_LEN) {
+					set_error("SurpassedMaxWordLength");
+					goto force_error;
+				}
 				word[word_len] = '\0';
+				// auto reject
+				if (word_len == 0) reject_obj = true;
 
 				// +1 for null character at the end, strcpy will add it
 				word_len++;
@@ -311,20 +343,10 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 				SimpleLangObject obj = (SimpleLangObject){
 					.ptr = word_copy,
 					.size = word_len,
-					.id = object_id,
 					.type = state,
 				};
 
 				if (!reject_obj) {
-					// just in case we accidentally make duplicate object_id, should be impossible though
-					while (objectListFind(object_id) != -1) {
-						object_id++;
-#ifdef SIMPLE_LANGUAGE_ERROR_MESSAGE
-						printf("DUPLICATE ID FOUND: %i\n", object_id);
-#endif
-					}
-					// reassign the id
-					obj.id = object_id;
 					if (!objectListAppend(obj)) {
 						// probably size issue
 						// reallocate
@@ -338,18 +360,17 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 							goto force_error;
 						}
 					}
-					// increment the id for the next obj
-					object_id++;
 					dont_append = true;
 
 #ifdef SIMPLE_LANGUAGE_ERROR_MESSAGE
-					printf("Id: %i | Type: %c\n", obj.id, obj.type);
+					printf("\tType: %c\n", obj.type);
 #endif
 				} else {
 #ifdef SIMPLE_LANGUAGE_ERROR_MESSAGE
 					printf("^rejected\n");
 #endif
 					sfree(word_copy);
+					reject_obj = false;
 				} 
 				if (end_statement) {
 					// fresh start
@@ -376,10 +397,16 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 		i++;
 	}
 
-	for (unsigned short j = 0; j < object_list_index; j++) {
-		if (object_list[j].id != -1)
-			printf("ID:%i|%c|%s\n", object_list[j].id, object_list[j].type, (const char*)object_list[j].ptr);
-	}
+	{
+		short size = 0;
+		unsigned short j = 0;
+		for (; j < object_list_index; j++) {
+			printf("%c|%s\n", object_list[j].type, (const char*)object_list[j].ptr);
+			size += sizeof(SimpleLangObject);
+			size += object_list[j].size;
+		}
+		printf("Size: %i, total amount of obj: %u\n", size, j);
+	};
 
 	objectListFree();
 	return;
