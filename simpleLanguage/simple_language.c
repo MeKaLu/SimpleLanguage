@@ -6,8 +6,8 @@
 	P -> pin
 	F -> func
 	A -> params
-	C -> combine	[C|n(P)|C|F|n(A)]
-	S -> condition	[P|S|n(B)|F|n(A)] or [C|n(P)|S|n(B)|F|n(A)]
+	C -> combine
+	S -> condition
 */
 #define STATE_ZERO						'0'
 #define STATE_PIN						'P'
@@ -19,8 +19,12 @@
 
 #define SPECIAL_COMMENT		'#'
 #define SPECIAL_END			';'
-#define SPECIAL_COMBINE		'@'
+#define SPECIAL_COMBINE		'&'
+#define SPECIAL_COMBINE_END '@'
 #define SPECIAL_CONDITION	':'
+#define SPECIAL_PLACEHOLDER '+'
+
+#define SPECIAL_END_STR			";\0"
 
 #if SIMPLE_LANGUAGE_ERROR_MESSAGE
 #define set_error(message)  strcpy(error, message, SIMPLE_LANGUAGE_ERROR_LEN)
@@ -168,7 +172,7 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 			if (state == STATE_ZERO && word_len == 0 && (c == SPECIAL_COMBINE || c == SPECIAL_CONDITION || c == SPECIAL_END)) {
 				set_error("CannotStartWithSpecialChars");
 				goto force_error;
-			} else if (c == SPECIAL_COMBINE || c == SPECIAL_CONDITION || c == SPECIAL_END) {
+			} else if (c == SPECIAL_COMBINE || c == SPECIAL_COMBINE_END || c == SPECIAL_CONDITION || c == SPECIAL_END) {
 				if (c == SPECIAL_END && word_len > 0) {
 					// word has ended, more like the entire statement ended though
 					// so for that to happen, there has to be at least a function
@@ -184,7 +188,7 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 						// no argument function
 						dont_append = true;
 						end_statement = true;
-						// fresh start
+						 //fresh start
 						fresh = true;
 
 						old_state = state;
@@ -199,43 +203,90 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 					}
 				} else if (c == SPECIAL_COMBINE) {
 					if (state == STATE_PIN && word_len == 0) {
-						// syntax rule error
-						set_error("InvalidUseOfCombine");
-						goto force_error;
+						if (old_state == STATE_ZERO || old_state == STATE_COMBINE) {
+							// multiple pins
+							old_state = state;
+							state = STATE_COMBINE;
+
+							// insert placeholder
+							word[0] = SPECIAL_PLACEHOLDER;
+							word_len = 1;
+							dont_append = true;
+							goto skip_to_object_append;
+						} else {
+							// syntax error
+							set_error("InvalidUseOfCombine");
+							goto force_error;
+						}
 					} else if (state == STATE_FUNCTION && word_len == 0) {
-						// syntax rule error
+						// syntax error
 						set_error("InvalidUseOfCombine");
 						goto force_error;
 					} else if (state == STATE_FUNCTION) {
 						printf("f\n");
 					}
+				} else if (c == SPECIAL_COMBINE_END) {
+					if (old_state != STATE_COMBINE) {
+						// syntax error
+						set_error("InvalidUseOfCombineEnd");
+						goto force_error;
+					}
+					dont_append = true;
+					// hack, after COMBINE_END there has to be a function
+					// so, just act like combine never happened and proceed
+					old_state = STATE_ZERO;
+					state = STATE_PIN;
 				} else if (c == SPECIAL_CONDITION) {
 					if (state == STATE_PIN && word_len == 0) {
-						// syntax rule error
-						set_error("InvalidUseOfCombine");
-						goto force_error;
+						if (old_state == STATE_ZERO) {
+							// condition right after pin
+						} else {
+							// syntax error
+							set_error("InvalidUseOfCombine");
+							goto force_error;
+						}
 					} else if (state == STATE_FUNCTION && word_len == 0) {
-						// syntax rule error
+						// syntax error
 						set_error("InvalidUseOfCondition");
 						goto force_error;
 					}
 				}
-			} else if (c != ' ' && word_len > 0) {
 			} else if (c == ' ' && word_len > 0) {
-				if (state == STATE_PIN && old_state == STATE_ZERO) {
+				bool reject_obj = false;
+				// check if there is no SPECIAL_END at the end of the C & P combos
+				if (state == STATE_PIN && old_state == STATE_COMBINE) {
+					// check for the last object
+					// if it is C & P as well, assume combine ended but no SPECIAL_END
+					const SimpleLangObject* o = &object_list[object_list_index - 1];
+					if (o->type == STATE_PIN) {
+						set_error("ForgotCombineEnd");
+						goto force_error;
+					}
+				} else if (state == STATE_PIN && old_state == STATE_ZERO) {
 					// there is going to be a function
 					old_state = state;
 					state = STATE_FUNCTION;
 				} else if (state == STATE_FUNCTION && old_state == STATE_PIN) {
+					// dont fucking append the special character
+					if (strcmp(word, SPECIAL_END_STR)) {
+						reject_obj = true;
+
+						dont_append = true;
+						end_statement = true;
+						fresh = true;
+					} 
 					// prevent double functions
 					old_state = state;
-					state = STATE_ARGUMENT;
+					state = STATE_ARGUMENT;		
 				} else if (state == STATE_PIN && old_state == STATE_ARGUMENT) {
 					// statement ended
 					old_state = STATE_ZERO;
-				}
+				} else if (state == STATE_COMBINE && old_state == STATE_PIN) {
+					// the other combined pins
+					old_state = state;
+					state = STATE_PIN;
+				} 
 			skip_to_object_append:
-				bool reject_obj = false;
 				word[word_len] = '\0';
 
 				// +1 for null character at the end, strcpy will add it
@@ -302,7 +353,6 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 				} 
 				if (end_statement) {
 					// fresh start
-					//if (old_state == STATE_FUNCTION) {
 					if (fresh) {
 						old_state = STATE_ZERO;
 						state = STATE_ZERO;
@@ -313,9 +363,12 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 					}
 					end_statement = false;
 				}
+				strfill(word, word_len, '\0');
 				word_len = 0;
 			}
-			if (!dont_append) {
+
+			// dont fucking add the space to the word
+			if (!dont_append && c != ' ') {
 				word[word_len] = c;
 				word_len++;
 			} else dont_append = false;

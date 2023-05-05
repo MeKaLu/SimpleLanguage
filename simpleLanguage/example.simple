@@ -4,36 +4,39 @@
 
 
 # single line with no args
-pin foo;
+pin f&o:o;
 
 
 # single line with no args and inline comment
-pin foo; # inline comment
+pin foo ; # inline comment
+
+
+# single line, two statements
+pin foo ; pin bar;
 
 # single line with 1 arg
 pin foo arg1;
 
+# single line, two statements with 1 arg
+pin foo arg1; pin bar arg1;
 
 # single line with 3 args
 pin foo arg1 arg2 arg3;
 
 # 3 pins with no arg
-pin1 @ pin2 @ pin3 foo;
-
-;
+pin1 & pin2 & pin3 @ foo arg1;
 
 # 3 pins with 1 arg
-pin1 @ pin2 @ pin3 foo arg1;
-
-
+pin1 & pin2 & pin3 @ foo arg1;
 
 # 3 pins with 3 args
-pin1 @ pin2 @ pin3 foo arg1 arg2 arg3;
+pin1 & pin2 & pin3 @ foo arg1 arg2 arg3;
 
+; # tested until here
 
 # 3 pins and 3 args with varied lines 
-pin1 @
-pin2 @ pin3 
+pin1 &
+pin2 & pin3 @
 foo arg1
 arg2 arg3;
 
@@ -45,13 +48,13 @@ pina0 : > 500 foo;
 pina0 : > 500 foo arg1;
 
 # 1 pin and 3 condition with 1 arg
-pina2 : > 500 @ < 700 @ != 550 foo arg;
+pina2 : > 500 & < 700 & != 550 @ foo arg;
 
 
 # 3 pin and 3 condition with varied lines and 3 arg
-pina2 @ pina4
-@ pina2
-: > 500 @
+pina2 & pina4
+& pina2
+: > 500 &
 < 700
-@ != 550 foo arg1 arg2 
+& != 550 @ foo arg1 arg2 
 arg3;
