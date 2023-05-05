@@ -2,13 +2,6 @@
 
 #include <cstdio>
 
-/*
-	P -> pin
-	F -> func
-	A -> params
-	C -> combine
-	S -> condition
-*/
 #define STATE_ZERO						'0'
 #define STATE_PIN						'P'
 #define STATE_FUNCTION					'F'
@@ -25,7 +18,7 @@
 #define SPECIAL_CONDITION				':'
 #define SPECIAL_PLACEHOLDER				'+'
 
-#define SPECIAL_END_STR			";\0"
+#define SPECIAL_END_STR					";\0"
 
 #if SIMPLE_LANGUAGE_ERROR_MESSAGE
 #define set_error(message)  strcpy(error, message, SIMPLE_LANGUAGE_ERROR_LEN)
