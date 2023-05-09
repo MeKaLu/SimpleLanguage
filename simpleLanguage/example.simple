@@ -10,7 +10,7 @@ pin f&|o:o|&|;
 # single line with no args and inline comment
 pin foo; # inline comment
 
-# multiline with no args
+# multiline with no args (done with extra spaces)
 pin 
 foo;
 
