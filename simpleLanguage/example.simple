@@ -52,7 +52,7 @@ foo arg1
 arg2 arg3;
 
 # 1 pin and 1 conditon with no arg
-pina0 : > 500 foo;
+pina0 : > 500 @ foo;
 
 
 # 1 pin and 1 conditon with 1 arg

@@ -209,13 +209,13 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 							set_error("InvalidUseOfCombine");
 							goto force_error;
 						}
-					} else if (state == STATE_FUNCTION) {
+					} else if (state == STATE_FUNCTION || state == STATE_ARGUMENT || state == STATE_CONDITION || state == STATE_CONDITION_ARGUMENT) {
 						// syntax error
 						set_error("InvalidUseOfCombine");
 						goto force_error;
 					} 
 				} else if (c == SPECIAL_COMBINE_END) {
-					if (old_state != STATE_COMBINE) {
+					if (old_state != STATE_COMBINE && old_state != STATE_CONDITION) {
 						// syntax error
 						set_error("InvalidUseOfCombineEnd");
 						goto force_error;
@@ -225,16 +225,24 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 					// so, just act like combine never happened and proceed
 					old_state = STATE_ZERO;
 					state = STATE_PIN;
-				} else if (c == SPECIAL_CONDITION) {
-					if (state == STATE_PIN && word_len == 0) {
+				} else if (c == SPECIAL_CONDITION && word_len == 0) {
+					if (state == STATE_PIN) {
 						if (old_state == STATE_ZERO) {
 							// condition right after pin
+						
+							old_state = state;
+							state = STATE_CONDITION;
+
+							word[0] = SPECIAL_PLACEHOLDER;
+							word_len = 1;
+							dont_append = true;
+							goto skip_to_object_append;
 						} else {
 							// syntax error
 							set_error("InvalidUseOfCombine");
 							goto force_error;
 						}
-					} else if (state == STATE_FUNCTION && word_len == 0) {
+					} else if (state == STATE_FUNCTION || state == STATE_ARGUMENT || state == STATE_COMBINE) {
 						// syntax error
 						set_error("InvalidUseOfCondition");
 						goto force_error;
@@ -260,6 +268,10 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 					// there is going to be a function
 					old_state = state;
 					state = STATE_FUNCTION;
+				} else if (state == STATE_CONDITION && old_state == STATE_PIN) {
+					// condition
+					old_state = state;
+					state = STATE_CONDITION_ARGUMENT;
 				} else if (state == STATE_FUNCTION && old_state == STATE_PIN) {
 					// prevent double functions
 					old_state = state;
