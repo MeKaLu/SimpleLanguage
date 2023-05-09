@@ -183,6 +183,9 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 
 						fresh = true;
 						goto skip_to_object_append;
+					} else {
+						set_error("InvalidUseOfSymbol");
+						goto force_error;
 					}
 				} else if (c == SPECIAL_END && word_len == 0) {
 					// space before ';'
@@ -211,7 +214,7 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 
 						dont_append = true;
 						goto skip_to_object_append;
-					} else /*if (state == STATE_FUNCTION || state == STATE_ARGUMENT || state == STATE_CONDITION || state == STATE_CONDITION_ARGUMENT)*/ {
+					} else {
 						// syntax error
 						set_error("InvalidUseOfCombine");
 						goto force_error;
@@ -236,7 +239,7 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 
 						dont_append = true;
 						goto skip_to_object_append;
-					} else if (state == STATE_FUNCTION || state == STATE_ARGUMENT || state == STATE_COMBINE) {
+					} else {
 						// syntax error
 						set_error("InvalidUseOfCondition");
 						goto force_error;
