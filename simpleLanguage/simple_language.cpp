@@ -8,6 +8,7 @@
 #define STATE_ARGUMENT					'A'
 #define STATE_COMBINE					'C'
 #define STATE_CONDITION					'S'
+#define STATE_CONDITION_TYPE		    'T'
 #define STATE_CONDITION_ARGUMENT		'B'
 
 #define SPECIAL_COMMENT					'#'
@@ -193,29 +194,30 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 					set_error("CannotStartWithSpecialSymbols");
 					goto force_error;
 				} else if (c == SPECIAL_COMBINE && word_len == 0) {
-					if (state == STATE_PIN) {
-						if (old_state == STATE_ZERO || old_state == STATE_COMBINE) {
-							// multiple pins
-							old_state = state;
-							state = STATE_COMBINE;
+					if (state == STATE_PIN && (old_state == STATE_ZERO || old_state == STATE_COMBINE)) {
+						// multiple pins
+						old_state = state;
+						state = STATE_COMBINE;
 
-							// insert placeholder
-							word[0] = SPECIAL_PLACEHOLDER;
-							word_len = 1;
-							dont_append = true;
-							goto skip_to_object_append;
-						} else {
-							// syntax error
-							set_error("InvalidUseOfCombine");
-							goto force_error;
-						}
-					} else if (state == STATE_FUNCTION || state == STATE_ARGUMENT || state == STATE_CONDITION || state == STATE_CONDITION_ARGUMENT) {
+						// insert placeholder
+						word[0] = SPECIAL_PLACEHOLDER;
+						word_len = 1;
+						dont_append = true;
+						goto skip_to_object_append;
+					} else if (state == STATE_CONDITION_ARGUMENT && old_state == STATE_CONDITION_TYPE) {
+						// multiple conditions
+						old_state = STATE_PIN;
+						state = STATE_CONDITION;
+
+						dont_append = true;
+						goto skip_to_object_append;
+					} else /*if (state == STATE_FUNCTION || state == STATE_ARGUMENT || state == STATE_CONDITION || state == STATE_CONDITION_ARGUMENT)*/ {
 						// syntax error
 						set_error("InvalidUseOfCombine");
 						goto force_error;
 					} 
 				} else if (c == SPECIAL_COMBINE_END) {
-					if (old_state != STATE_COMBINE && old_state != STATE_CONDITION) {
+					if (old_state != STATE_COMBINE && old_state != STATE_CONDITION_TYPE) {
 						// syntax error
 						set_error("InvalidUseOfCombineEnd");
 						goto force_error;
@@ -226,22 +228,14 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 					old_state = STATE_ZERO;
 					state = STATE_PIN;
 				} else if (c == SPECIAL_CONDITION && word_len == 0) {
-					if (state == STATE_PIN) {
-						if (old_state == STATE_ZERO) {
-							// condition right after pin
+					if (state == STATE_PIN && old_state == STATE_ZERO) {
+						// condition right after pin
 						
-							old_state = state;
-							state = STATE_CONDITION;
+						old_state = state;
+						state = STATE_CONDITION;
 
-							word[0] = SPECIAL_PLACEHOLDER;
-							word_len = 1;
-							dont_append = true;
-							goto skip_to_object_append;
-						} else {
-							// syntax error
-							set_error("InvalidUseOfCombine");
-							goto force_error;
-						}
+						dont_append = true;
+						goto skip_to_object_append;
 					} else if (state == STATE_FUNCTION || state == STATE_ARGUMENT || state == STATE_COMBINE) {
 						// syntax error
 						set_error("InvalidUseOfCondition");
@@ -269,6 +263,10 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 					old_state = state;
 					state = STATE_FUNCTION;
 				} else if (state == STATE_CONDITION && old_state == STATE_PIN) {
+					// condition type
+					old_state = state;
+					state = STATE_CONDITION_TYPE;
+				} else if (state == STATE_CONDITION_TYPE && old_state == STATE_CONDITION) {
 					// condition
 					old_state = state;
 					state = STATE_CONDITION_ARGUMENT;
@@ -283,7 +281,8 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 					// the other combined pins
 					old_state = state;
 					state = STATE_PIN;
-				} 
+				}
+
 			skip_to_object_append:
 				if (word_len >= SIMPLE_LANGUAGE_MAX_WORD_LEN) {
 					set_error("SurpassedMaxWordLength");

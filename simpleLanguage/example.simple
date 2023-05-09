@@ -56,8 +56,8 @@ pina0 : > 500 @ foo;
 
 
 # 1 pin and 1 conditon with 1 arg
-#pina0 : > 500 foo arg1;
+pina0 : > 500 @ foo arg1;
 
 # 1 pin and 3 condition with 1 arg
-#pina2 : > 500 & < 700 & != 550 @ foo arg;
+pina2 : > 500 & < 700 & != 550 @ foo arg;
 
