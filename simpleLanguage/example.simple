@@ -63,3 +63,11 @@ pina2 : > 500 & < 700 & != 550 @ foo arg;
 
 # 3 pin and 3 condition with 3 arg
 pina2 & pina0 & pina1 @ : > 500 & < 700 @ foo arg1 arg2 arg3;
+
+
+# 3 pin and 3 condition with 3 arg, varied lines
+pina2 & pina0 
+& pina1 @ 
+: > 500 & 
+< 
+700 @ foo arg1 arg2 arg3;
