@@ -14,7 +14,6 @@
 #define SPECIAL_END						';'
 #define SPECIAL_COMBINE					'&'
 #define SPECIAL_COMBINE_END				'@'
-#define SPECIAL_LINEIGNORE				'|'
 #define SPECIAL_CONDITION				':'
 #define SPECIAL_PLACEHOLDER				'+'
 
@@ -139,24 +138,7 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 		if (c == '\n') {
 			if (skip) skip = false;
 			else if (!skip) {
-				if (state == STATE_PIN && old_state == STATE_ZERO) {
-					// line broke and there  is not a line break 
-					// cause its not required in arguments and after functions
-					// forcibly append the object
-					dont_append = true;
-
-					old_state = state;
-					state = STATE_ARGUMENT;
-					linec++;
-					goto skip_to_object_append;
-				} else if (state == STATE_ARGUMENT) {
-					dont_append = true;
-
-					old_state = state;
-					state = STATE_ARGUMENT;
-					linec++;
-					goto skip_to_object_append;
-				} else if ((state == STATE_ZERO) && word_len > 0) {
+				if (word_len > 0) {
 					// there should be ';' at the end of each statement but there was not
 					set_error("UnfinishedStatement");
 					goto force_error;
@@ -171,7 +153,7 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 			if ((state == STATE_ZERO && old_state == STATE_ZERO) && word_len == 0 && (c == SPECIAL_COMBINE || c == SPECIAL_COMBINE_END || c == SPECIAL_CONDITION || c == SPECIAL_END)) {
 				set_error("CannotStartWithSpecialSymbols");
 				goto force_error;
-			} else if (c == SPECIAL_COMBINE || c == SPECIAL_COMBINE_END || c == SPECIAL_LINEIGNORE || c == SPECIAL_CONDITION || c == SPECIAL_END) {
+			} else if (c == SPECIAL_COMBINE || c == SPECIAL_COMBINE_END || c == SPECIAL_CONDITION || c == SPECIAL_END) {
 				if (c == SPECIAL_END && word_len > 0) {
 					// word has ended, more like the entire statement ended though
 					// so for that to happen, there has to be at least a function
@@ -210,8 +192,8 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 					// any other way except ending after the arguments are false
 					set_error("CannotStartWithSpecialSymbols");
 					goto force_error;
-				} else if (c == SPECIAL_COMBINE) {
-					if (state == STATE_PIN && word_len == 0) {
+				} else if (c == SPECIAL_COMBINE && word_len == 0) {
+					if (state == STATE_PIN) {
 						if (old_state == STATE_ZERO || old_state == STATE_COMBINE) {
 							// multiple pins
 							old_state = state;
@@ -227,7 +209,7 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 							set_error("InvalidUseOfCombine");
 							goto force_error;
 						}
-					} else if (state == STATE_FUNCTION && word_len == 0) {
+					} else if (state == STATE_FUNCTION) {
 						// syntax error
 						set_error("InvalidUseOfCombine");
 						goto force_error;
@@ -243,20 +225,6 @@ void simpleLangExecute(const char* code, const unsigned short code_size) {
 					// so, just act like combine never happened and proceed
 					old_state = STATE_ZERO;
 					state = STATE_PIN;
-				} else if (c == SPECIAL_LINEIGNORE) {
-					if (state == STATE_FUNCTION && old_state == STATE_PIN) {
-						// syntax error
-						set_error("InvalidUseOfLineIgnore");
-						goto force_error;
-					} else if (state == STATE_ARGUMENT && old_state == STATE_FUNCTION) {
-						// syntax error
-						set_error("InvalidUseOfLineIgnore");
-						goto force_error;
-					} else if (word_len == 0) {
-						// ignore the line break
-						skip = true;
-						dont_append = true;
-					}
 				} else if (c == SPECIAL_CONDITION) {
 					if (state == STATE_PIN && word_len == 0) {
 						if (old_state == STATE_ZERO) {
